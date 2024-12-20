@@ -17,8 +17,45 @@ app.post("/signup", async (req, res) => {
   } catch (err) {
     res.status(400).send("Error occured while saving the user:" + err.message);
   }
-  
 });
+
+//get user my email
+app.get("/user", async (req,res)=>{
+  const userEmail = req.body.emailId;
+
+  try{
+    const user = await User.findOne({emailId:userEmail});
+    if(!user){
+      res.status(400).send("User not found")
+    }else{
+      res.send(user);
+    }
+  }
+  catch(err){
+    res.status(400).send("Somthing went wrong")
+  }
+  
+  // try{
+  //   const users = await User.find({emailId:userEmail});
+  //   if(users.length===0){
+  //     res.status(400).send("User not found")
+  //   }else{
+  //     res.send(users)
+  //   }
+  // }catch(err){
+  //   res.status(400).send("Somthing went wrong")
+  // }
+})
+
+//get all user from database for feed
+app.get("/feed", async (req,res)=>{
+  const users = await User.find({})
+  if(users.length===0){
+    res.status(400).send("User Not found")
+  }else{
+    res.send(users);
+  }
+})
 
 connectDB()
   .then(() => {
