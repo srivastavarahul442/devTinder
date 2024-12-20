@@ -5,13 +5,11 @@ const { User } = require("./models/user.js");
 
 const app = express();
 
+app.use(express.json())
+
 app.post("/signup", async (req, res) => {
-  const user = new User({
-    firstName: "Virat",
-    lastName: "Kohli",
-    emailId: "Virat@gmail.com",
-    password: "Virat@123",
-  });
+
+  const user = new User(req.body);
 
   try {
     await user.save();
@@ -19,6 +17,7 @@ app.post("/signup", async (req, res) => {
   } catch (err) {
     res.status(400).send("Error occured while saving the user:" + err.message);
   }
+  
 });
 
 connectDB()
