@@ -2,21 +2,67 @@ const express = require("express");
 const { adminAuth, userAuth } = require("./middlewares/auth.js");
 const { connectDB } = require("./config/database.js");
 const { User } = require("./models/user.js");
+const { validateSignupData } = require("./utils/validation.js");
+const bcrypt = require("bcrypt");
+const validator = require("validator");
 
 const app = express();
 
 app.use(express.json());
 
 app.post("/signup", async (req, res) => {
-  const user = new User(req.body);
-
+  const { firstName, lastName, emailId, password } = req.body;
   try {
+    //validation for user signup
+    validateSignupData(req);
+
+    //Encrypting the password
+    const passwordHash = await bcrypt.hash(password, 10);
+    console.log(passwordHash);
+
+    //creating a new instance of the user model
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
+
     await user.save();
     res.send("data saved successfully");
   } catch (err) {
-    res.status(400).send("Error occured while saving the user:" + err.message);
+    res.status(400).send("Error : " + err.message);
   }
 });
+
+app.post("/login",async (req,res)=>{
+  try{
+    const {emailId,password} = req.body;
+
+    if(!validator.isEmail(emailId)){
+      throw new Error("Email id is not valid");
+    }
+
+    const user = await User.findOne({emailId:emailId})
+    if(!user){
+      throw new Error("Invalid credentials")
+    }
+
+    const isPasswordValid = await bcrypt.compare(password,user.password)
+
+    if(isPasswordValid){
+      res.send("Login Successfull")
+    }
+    else{
+      throw new Error("Invalid credentials")
+    }
+
+  }
+    catch(err){
+      res.status(400).send("Error : " + err.message);
+    }
+  
+})
 
 //get user my email
 app.get("/user", async (req, res) => {
@@ -83,8 +129,8 @@ app.patch("/user/:userId", async (req, res) => {
       throw new Error("Update are not allowed");
     }
 
-    if(data?.skills.length>10){
-      throw new Error("Skills can't be more then 10.")
+    if (data?.skills.length > 10) {
+      throw new Error("Skills can't be more then 10.");
     }
 
     await User.findByIdAndUpdate({ _id: userId }, data, {
