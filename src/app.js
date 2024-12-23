@@ -5,10 +5,13 @@ const { User } = require("./models/user.js");
 const { validateSignupData } = require("./utils/validation.js");
 const bcrypt = require("bcrypt");
 const validator = require("validator");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
   const { firstName, lastName, emailId, password } = req.body;
@@ -35,34 +38,53 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-app.post("/login",async (req,res)=>{
-  try{
-    const {emailId,password} = req.body;
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
 
-    if(!validator.isEmail(emailId)){
+    if (!validator.isEmail(emailId)) {
       throw new Error("Email id is not valid");
     }
 
-    const user = await User.findOne({emailId:emailId})
-    if(!user){
-      throw new Error("Invalid credentials")
+    const user = await User.findOne({ emailId: emailId });
+    if (!user) {
+      throw new Error("Invalid credentials");
     }
 
-    const isPasswordValid = await bcrypt.compare(password,user.password)
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if(isPasswordValid){
-      res.send("Login Successfull")
-    }
-    else{
-      throw new Error("Invalid credentials")
-    }
+    if (isPasswordValid) {
+      const token = await jwt.sign({ _id: user._id }, "dev@tinder321");
 
+      res.cookie("token", token);
+      res.send("Login Successfull");
+    } else {
+      throw new Error("Invalid credentials");
+    }
+  } catch (err) {
+    res.status(400).send("Error : " + err.message);
   }
-    catch(err){
-      res.status(400).send("Error : " + err.message);
+});
+
+app.get("/profile", async (req, res) => {
+  try {
+    const cookies = req.cookies;
+    const { token } = cookies;
+
+    if (!token) {
+      throw new Error("Invalid token")
     }
-  
-})
+
+    const decodeMessage = await jwt.verify(token, "dev@tinder321");
+
+    const { _id } = decodeMessage;
+    const user = await User.findById({ _id });
+   
+    res.send(user);
+  } catch (err) {
+    res.status(400).send("Error : " + err.message);
+  }
+});
 
 //get user my email
 app.get("/user", async (req, res) => {
