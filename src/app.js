@@ -1,5 +1,5 @@
 const express = require("express");
-const { adminAuth, userAuth } = require("./middlewares/auth.js");
+const { userAuth } = require("./middlewares/auth.js");
 const { connectDB } = require("./config/database.js");
 const { User } = require("./models/user.js");
 const { validateSignupData } = require("./utils/validation.js");
@@ -7,6 +7,7 @@ const bcrypt = require("bcrypt");
 const validator = require("validator");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
+
 
 const app = express();
 
@@ -51,10 +52,10 @@ app.post("/login", async (req, res) => {
       throw new Error("Invalid credentials");
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await user.validatePassword(password);
 
     if (isPasswordValid) {
-      const token = await jwt.sign({ _id: user._id }, "dev@tinder321");
+      const token = await user.getJWT();
 
       res.cookie("token", token);
       res.send("Login Successfull");
@@ -66,19 +67,9 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.get("/profile", async (req, res) => {
+app.get("/profile",userAuth, async (req, res) => {
   try {
-    const cookies = req.cookies;
-    const { token } = cookies;
-
-    if (!token) {
-      throw new Error("Invalid token")
-    }
-
-    const decodeMessage = await jwt.verify(token, "dev@tinder321");
-
-    const { _id } = decodeMessage;
-    const user = await User.findById({ _id });
+    const user = req.user;
    
     res.send(user);
   } catch (err) {
