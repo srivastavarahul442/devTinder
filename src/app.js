@@ -1,159 +1,18 @@
 const express = require("express");
-const { userAuth } = require("./middlewares/auth.js");
 const { connectDB } = require("./config/database.js");
-const { User } = require("./models/user.js");
-const { validateSignupData } = require("./utils/validation.js");
-const bcrypt = require("bcrypt");
-const validator = require("validator");
-const cookieParser = require("cookie-parser");
-const jwt = require("jsonwebtoken");
-
-
 const app = express();
+const cookieParser = require("cookie-parser");
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.post("/signup", async (req, res) => {
-  const { firstName, lastName, emailId, password } = req.body;
-  try {
-    //validation for user signup
-    validateSignupData(req);
+const authRouter = require("./routes/auth.js")
+const profileRouter = require("./routes/profile.js")
+const requestRouter = require("./routes/requests.js")
 
-    //Encrypting the password
-    const passwordHash = await bcrypt.hash(password, 10);
-    console.log(passwordHash);
-
-    //creating a new instance of the user model
-    const user = new User({
-      firstName,
-      lastName,
-      emailId,
-      password: passwordHash,
-    });
-
-    await user.save();
-    res.send("data saved successfully");
-  } catch (err) {
-    res.status(400).send("Error : " + err.message);
-  }
-});
-
-app.post("/login", async (req, res) => {
-  try {
-    const { emailId, password } = req.body;
-
-    if (!validator.isEmail(emailId)) {
-      throw new Error("Email id is not valid");
-    }
-
-    const user = await User.findOne({ emailId: emailId });
-    if (!user) {
-      throw new Error("Invalid credentials");
-    }
-
-    const isPasswordValid = await user.validatePassword(password);
-
-    if (isPasswordValid) {
-      const token = await user.getJWT();
-
-      res.cookie("token", token);
-      res.send("Login Successfull");
-    } else {
-      throw new Error("Invalid credentials");
-    }
-  } catch (err) {
-    res.status(400).send("Error : " + err.message);
-  }
-});
-
-app.get("/profile",userAuth, async (req, res) => {
-  try {
-    const user = req.user;
-   
-    res.send(user);
-  } catch (err) {
-    res.status(400).send("Error : " + err.message);
-  }
-});
-
-//get user my email
-app.get("/user", async (req, res) => {
-  const userEmail = req.body.emailId;
-
-  try {
-    const user = await User.findOne({ emailId: userEmail });
-    if (!user) {
-      res.status(400).send("User not found");
-    } else {
-      res.send(user);
-    }
-  } catch (err) {
-    res.status(400).send("Somthing went wrong");
-  }
-
-  // try{
-  //   const users = await User.find({emailId:userEmail});
-  //   if(users.length===0){
-  //     res.status(400).send("User not found")
-  //   }else{
-  //     res.send(users)
-  //   }
-  // }catch(err){
-  //   res.status(400).send("Somthing went wrong")
-  // }
-});
-
-//get all user from database for feed
-app.get("/feed", async (req, res) => {
-  const users = await User.find({});
-  if (users.length === 0) {
-    res.status(400).send("User Not found");
-  } else {
-    res.send(users);
-  }
-});
-
-//delet a user from database
-app.delete("/user", async (req, res) => {
-  const userId = req.body.userId;
-
-  try {
-    //const user = await User.findByIdAndDelete({_id:userId});
-    const user = await User.findByIdAndDelete(userId);
-    res.send("User deleted successfully");
-  } catch (err) {
-    res.status(400).send("Somthing went wrong");
-  }
-});
-
-//update the data of the user in database
-app.patch("/user/:userId", async (req, res) => {
-  const userId = req.params?.userId;
-  const data = req.body;
-
-  try {
-    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-      ALLOWED_UPDATES.includes(k)
-    );
-
-    if (!isUpdateAllowed) {
-      throw new Error("Update are not allowed");
-    }
-
-    if (data?.skills.length > 10) {
-      throw new Error("Skills can't be more then 10.");
-    }
-
-    await User.findByIdAndUpdate({ _id: userId }, data, {
-      runValidators: true,
-    });
-    res.send("Use data updated successfully");
-  } catch (err) {
-    res.status(400).send("Update failed:" + err.message);
-  }
-});
+app.use("/",authRouter);
+app.use("/",profileRouter);
+app.use("/",requestRouter);
 
 connectDB()
   .then(() => {
