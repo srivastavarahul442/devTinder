@@ -24,8 +24,13 @@ authRouter.post("/signup", async (req, res) => {
       password: passwordHash,
     });
 
-    await user.save();
-    res.send("data saved successfully");
+    const savesUser = await user.save();
+
+    const token = await savesUser.getJWT();
+
+      res.cookie("token", token);
+
+    res.send(savesUser);
   } catch (err) {
     res.status(400).send("Error : " + err.message);
   }
@@ -50,10 +55,13 @@ authRouter.post("/login", async (req, res) => {
       const token = await user.getJWT();
 
       res.cookie("token", token);
-      res.send("Login Successfull");
+      res.send(user);
     } else {
       throw new Error("Invalid credentials");
     }
+
+   
+
   } catch (err) {
     res.status(400).send("Error : " + err.message);
   }
